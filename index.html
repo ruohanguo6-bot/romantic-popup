@@ -24,7 +24,7 @@
     .bg1{ background-image:url("bg1.jpg"); opacity:1; }
     .bg2{ background-image:url("bg2.jpg"); opacity:0; }
 
-    /* 朦胧暗角 + 轻雾（不模糊背景，只做氛围层） */
+    /* 朦胧暗角 + 轻雾（不模糊背景） */
     .vignette{
       position:fixed; inset:0; z-index:-2;
       background:
@@ -74,7 +74,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* 浮现：更朦胧、更柔 */
     .bubble.show{
       opacity:1;
       filter: blur(0);
@@ -85,7 +84,6 @@
         filter 1.7s ease;
     }
 
-    /* 微漂浮（很轻） */
     .bubble.float{
       animation: drift 7.2s ease-in-out infinite;
     }
@@ -94,185 +92,4 @@
       50%{ transform: translateY(-6px) scale(1); }
     }
 
-    /* 旧念头：慢慢褪成回忆 */
-    .bubble.fade{
-      opacity:.16;
-      transition: opacity 6.0s ease;
-    }
-
-    /* 点击飘心（很克制） */
-    .heart{
-      position:fixed;
-      left:var(--x);
-      top:var(--y);
-      transform:translate(-50%,-50%);
-      font-size:18px;
-      opacity:0;
-      pointer-events:none;
-      animation: floatUp 2.6s linear forwards;
-      z-index:40;
-      filter: drop-shadow(0 10px 14px rgba(0,0,0,.28));
-    }
-    @keyframes floatUp{
-      0%{opacity:0; transform:translate(-50%,-20%) scale(.8);}
-      15%{opacity:.75;}
-      100%{opacity:0; transform:translate(calc(-50% + var(--dx)),-260px) scale(1.35);}
-    }
-  </style>
-</head>
-
-<body>
-  <div class="bg bg1"></div>
-  <div class="bg bg2"></div>
-  <div class="vignette"></div>
-
-  <div class="tip">公子佳人</div>
-  <div id="layer"></div>
-
-  <script>
-    /* ===== 文案（你可以继续加，但建议别太多） ===== */
-    const texts = [
-      "那以爱为名的骗子，本不配得到哀悼。",
-      "神明不是每个人都会眷顾的。",
-      "如果雪地足够干净，脚印留下来，本身也不是什么坏事。",
-      "记住你，爱上你，直到死亡将你带走。",
-      "这一次，我是为你而来的神明。"
-    ];
-
-    /* ===== 柔和气泡配色（低饱和，不刺眼） ===== */
-    const bubbleColors = [
-      "rgba(255,255,255,.72)",   // 奶白
-      "rgba(251,235,255,.70)",   // 轻粉紫
-      "rgba(236,243,255,.70)",   // 轻雾蓝
-      "rgba(236,255,248,.66)",   // 轻薄荷
-      "rgba(255,247,232,.68)",   // 轻奶杏
-      "rgba(242,238,255,.68)"    // 淡薰衣草
-    ];
-
-    const layer = document.getElementById("layer");
-
-    // 最近不重复（避免同一句疯狂刷屏）
-    const recent = [];
-    function pickText(){
-      let t = texts[Math.floor(Math.random() * texts.length)];
-      let guard = 0;
-      while (recent.includes(t) && guard < 10) {
-        t = texts[Math.floor(Math.random() * texts.length)];
-        guard++;
-      }
-      recent.push(t);
-      if (recent.length > 3) recent.shift();
-      return t;
-    }
-
-    // 生成均衡位置：左/右/中，且不偏某一边
-    function pickPosition(){
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      // 三个区域的概率：左右均衡 + 中间轻聚集
-      const r = Math.random();
-      let x;
-      if (r < 0.34) {
-        // 左区：10%~42%
-        x = w * (0.10 + Math.random() * 0.32);
-      } else if (r < 0.68) {
-        // 右区：58%~90%
-        x = w * (0.58 + Math.random() * 0.32);
-      } else {
-        // 中区：30%~70%
-        x = w * (0.30 + Math.random() * 0.40);
-      }
-
-      // y：避开顶部标题，偏中下更沉浸
-      const y = h * (0.22 + Math.random() * 0.64);
-
-      return { x, y, w, h };
-    }
-
-    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
-
-    function spawnBubble(){
-      const b = document.createElement("div");
-      b.className = "bubble";
-      b.textContent = pickText();
-
-      // 颜色
-      b.style.setProperty("--bg", bubbleColors[Math.floor(Math.random() * bubbleColors.length)]);
-
-      // 位置
-      const {x, y, w, h} = pickPosition();
-
-      // 给气泡一个“最大宽度”测量前的安全边距
-      const margin = 10;
-      // 用 transformOrigin 让出现更自然
-      b.style.transformOrigin = (x < w*0.5) ? "left center" : "right center";
-
-      // 先放入 dom 再定位（更稳定）
-      layer.appendChild(b);
-
-      // 计算气泡尺寸，确保不跑出屏幕（解决你说的“堆右边+挤出”感觉）
-      const bw = b.offsetWidth || Math.min(w * 0.74, 460);
-      const bh = b.offsetHeight || 44;
-
-      const left = clamp(x, margin, w - bw - margin);
-      const top  = clamp(y, 70, h - bh - 18);
-
-      b.style.left = left + "px";
-      b.style.top  = top + "px";
-
-      requestAnimationFrame(()=>{
-        b.classList.add("show");
-        if (Math.random() < 0.72) b.classList.add("float");
-      });
-
-      // 控制数量：不臃肿（同时让旧的变“回忆”）
-      const maxLive = 14;     // 同时清晰可见的上限
-      const maxTotal = 20;    // 极限总数（含回忆）
-
-      if (layer.children.length > maxLive) {
-        // 最早的一条开始变淡
-        const old = layer.children[0];
-        old.classList.add("fade");
-      }
-      if (layer.children.length > maxTotal) {
-        const oldest = layer.children[0];
-        // 给它时间淡出去再移除
-        setTimeout(()=>{ if (oldest && oldest.parentNode) oldest.remove(); }, 6200);
-      }
-
-      // 朦胧节奏：不密不慢（避免臃肿）
-      const nextIn = 620 + Math.random() * 980; // 0.62s ~ 1.60s
-      setTimeout(spawnBubble, nextIn);
-    }
-
-    // 启动：先来两条，营造“已经在发生”
-    setTimeout(spawnBubble, 420);
-    setTimeout(spawnBubble, 1150);
-
-    /* 背景交替：更慢、更梦 */
-    let showFirst = true;
-    setInterval(()=>{
-      document.querySelector(".bg1").style.opacity = showFirst ? 0 : 1;
-      document.querySelector(".bg2").style.opacity = showFirst ? 1 : 0;
-      showFirst = !showFirst;
-    }, 12000);
-
-    /* 点击飘心：数量更少、更柔 */
-    const hearts = ["💗","💖","💘","💕"];
-    document.addEventListener("click",(e)=>{
-      const count = 3;
-      for(let k=0;k<count;k++){
-        const h = document.createElement("div");
-        h.className = "heart";
-        h.textContent = hearts[Math.floor(Math.random()*hearts.length)];
-        h.style.setProperty("--x", e.clientX + "px");
-        h.style.setProperty("--y", e.clientY + "px");
-        h.style.setProperty("--dx", (Math.random()*120 - 60) + "px");
-        document.body.appendChild(h);
-        h.addEventListener("animationend",()=>h.remove());
-      }
-    },{passive:true});
-  </script>
-</body>
-</html>
+    .bubbl
