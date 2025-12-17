@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>给你的一点浪漫</title>
+  <style>
+    body{margin:0;height:100vh;overflow:hidden;font-family:system-ui,-apple-system;color:#fff;background:#070812}
+    .bg{position:fixed;inset:0;background:url("bg.jpg") center/cover no-repeat;filter:blur(8px) brightness(.86);transform:scale(1.08);z-index:-1}
+    .v{position:fixed;inset:0;background:radial-gradient(70% 70% at 50% 30%, transparent 38%, rgba(0,0,0,.55) 100%);pointer-events:none}
+
+    #layer{position:fixed;inset:0;padding:60px 16px 16px;display:flex;flex-direction:column;gap:10px}
+    .bubble{
+      max-width:82%;
+      padding:11px 14px;border-radius:18px;
+      background:linear-gradient(135deg,#f6e8ff,#fdefff);
+      color:rgba(30,30,40,.92);
+      box-shadow:0 12px 32px rgba(0,0,0,.28);
+      border:1px solid rgba(255,255,255,.65);
+      opacity:0;transform:translateY(16px) scale(.98);
+      animation:pop .6s cubic-bezier(.2,.9,.2,1) forwards;
+    }
+    .left{align-self:flex-start}
+    .right{align-self:flex-end}
+    .center{align-self:center}
+
+    @keyframes pop{
+      0%{opacity:0;transform:translateY(18px) scale(.96);filter:blur(1px)}
+      70%{opacity:1;transform:translateY(0) scale(1.02);filter:blur(0)}
+      100%{opacity:1;transform:translateY(0) scale(1)}
+    }
+
+    .tip{
+      position:fixed;left:12px;top:12px;z-index:10;
+      padding:10px 12px;border-radius:999px;
+      background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+      backdrop-filter: blur(10px);
+      font-size:13px;opacity:.9;user-select:none
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="v"></div>
+  <div class="tip">💗 轻轻往下看</div>
+  <div id="layer"></div>
+
+  <script>
+    const texts = [
+      "那以爱为名的骗子，本不配得到哀悼。",
+      "神明不是每个人都会眷顾的。",
+      "如果雪地足够干净，脚印留下来，本身也不是什么坏事。",
+      "记住你，爱上你，直到死亡将你带走。",
+      "这一次，我是为你而来的神明。",
+      "我不催你，我只是在你身边。"
+    ];
+    const aligns = ["left","right","center","left","right"];
+    const layer = document.getElementById("layer");
+    let i = 0;
+
+    function addBubble(){
+      const b = document.createElement("div");
+      b.className = "bubble " + aligns[i % aligns.length];
+      b.textContent = texts[i % texts.length];
+      layer.appendChild(b);
+      i++;
+      if(layer.children.length > 12) layer.removeChild(layer.children[0]);
+    }
+
+    addBubble();
+    setInterval(addBubble, 850);
+  </script>
+</body>
+</html>
