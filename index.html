@@ -6,25 +6,29 @@
   <title>公子佳人</title>
 
   <style>
-    *{ box-sizing:border-box; }
+    *{box-sizing:border-box}
     body{
       margin:0;height:100vh;overflow:hidden;
       font-family: system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-      background:#000;color:#fff;
+      color:#fff;
+      background:
+        radial-gradient(900px 700px at 20% 20%, rgba(255,105,180,.18), transparent 60%),
+        radial-gradient(900px 700px at 80% 40%, rgba(138,43,226,.14), transparent 60%),
+        radial-gradient(900px 900px at 50% 100%, rgba(64,224,208,.08), transparent 65%),
+        #06060a;
     }
 
-    /* ===== 背景（不虚化，双图淡入淡出） ===== */
+    /* 背景层：先显示渐变底色，图片加载好再替换 */
     .bg{
       position:fixed; inset:0;
       background-position:center;
       background-size:cover;
-      transition: opacity 4s ease;
+      opacity:0;
+      transition: opacity 2.8s ease;
       z-index:-3;
     }
-    .bg1{ background-image:url("bg1.jpg"); opacity:1; }
-    .bg2{ background-image:url("bg2.jpg"); opacity:0; }
+    .bg.show{ opacity:1; }
 
-    /* 朦胧暗角（只做气氛，不遮画） */
     .vignette{
       position:fixed; inset:0; z-index:-2;
       background:
@@ -33,7 +37,6 @@
       pointer-events:none;
     }
 
-    /* 标题 */
     .tip{
       position:fixed; top:14px; left:14px;
       padding:8px 14px;
@@ -45,7 +48,22 @@
       user-select:none;
     }
 
-    /* ===== 气泡层 ===== */
+    /* 屏幕中间的状态提示（只在出问题时显示） */
+    .status{
+      position:fixed; left:50%; top:50%;
+      transform:translate(-50%,-50%);
+      padding:12px 14px;
+      border-radius:14px;
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:13px;
+      z-index:35;
+      max-width:min(88vw,520px);
+      text-align:center;
+      line-height:1.5;
+    }
+    .status.hidden{ display:none; }
+
     #layer{
       position:fixed; inset:0;
       z-index:10;
@@ -63,43 +81,25 @@
       box-shadow: 0 12px 30px rgba(0,0,0,.18);
       font-size:13px;
       line-height:1.45;
-
       opacity:0;
       transform: translateY(14px) scale(.975);
       filter: blur(1px);
       will-change: transform, opacity;
     }
-
     .bubble.show{
       opacity:1;
       filter: blur(0);
       transform: translateY(0) scale(1);
-      transition:
-        opacity 1.7s ease,
-        transform 2.3s cubic-bezier(.18,.9,.18,1),
-        filter 1.7s ease;
+      transition: opacity 1.7s ease, transform 2.3s cubic-bezier(.18,.9,.18,1), filter 1.7s ease;
     }
+    .bubble.float{ animation: drift 7s ease-in-out infinite; }
+    @keyframes drift{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+    .bubble.fade{ opacity:.15; transition: opacity 6s ease; }
 
-    .bubble.float{
-      animation: drift 7s ease-in-out infinite;
-    }
-    @keyframes drift{
-      0%,100%{ transform: translateY(0); }
-      50%{ transform: translateY(-6px); }
-    }
-
-    .bubble.fade{
-      opacity:.15;
-      transition: opacity 6s ease;
-    }
-
-    /* 点击飘心（极克制） */
     .heart{
-      position:fixed;
-      left:var(--x); top:var(--y);
+      position:fixed; left:var(--x); top:var(--y);
       transform:translate(-50%,-50%);
-      font-size:18px;
-      opacity:0;
+      font-size:18px; opacity:0;
       pointer-events:none;
       animation: floatUp 2.6s linear forwards;
       z-index:40;
@@ -113,21 +113,60 @@
 </head>
 
 <body>
-
-  <div class="bg bg1"></div>
-  <div class="bg bg2"></div>
+  <div id="bg1" class="bg"></div>
+  <div id="bg2" class="bg"></div>
   <div class="vignette"></div>
 
   <div class="tip">公子佳人</div>
+  <div id="status" class="status">正在加载背景…（如果一直停在这，说明图片路径/文件名有问题）</div>
   <div id="layer"></div>
 
-  <!-- 🎧 BGM：稳定方案 -->
-  <audio id="bgm" src="bgm.mp3" loop preload="none"
-         playsinline webkit-playsinline></audio>
+  <!-- BGM：不预加载，避免拖死首屏 -->
+  <audio id="bgm" src="bgm.mp3" loop preload="none" playsinline webkit-playsinline></audio>
 
   <script>
-  document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", async () => {
+    const status = document.getElementById("status");
+    const bg1 = document.getElementById("bg1");
+    const bg2 = document.getElementById("bg2");
+    const layer = document.getElementById("layer");
 
+    // ✅ 这里会自动“带版本号”，避免 GitHub Pages 缓存导致你明明改了但还是旧文件
+    const BG1_URL = "bg1.jpg?v=2";
+    const BG2_URL = "bg2.jpg?v=2";
+
+    function preload(url){
+      return new Promise((resolve, reject)=>{
+        const img = new Image();
+        img.onload = () => resolve(url);
+        img.onerror = () => reject(url);
+        img.src = url;
+      });
+    }
+
+    // 1) 先预加载两张背景：成功了再显示（避免黑屏）
+    try{
+      await Promise.all([preload(BG1_URL), preload(BG2_URL)]);
+      bg1.style.backgroundImage = `url("${BG1_URL}")`;
+      bg2.style.backgroundImage = `url("${BG2_URL}")`;
+      bg1.classList.add("show");         // 先显示第一张
+      status.classList.add("hidden");
+    }catch(e){
+      // 背景加载失败也不会黑屏：保留渐变底，并提示你要检查文件名/路径
+      status.textContent = "背景加载失败：请确认仓库根目录有 bg1.jpg 和 bg2.jpg（全小写），然后强刷页面。";
+      // 这里仍然让你能看到页面，不会纯黑
+    }
+
+    // 2) 背景交替（只有背景成功显示后才交替）
+    let toggle = true;
+    setInterval(()=>{
+      if(!bg1.classList.contains("show")) return; // 背景没加载成功就不切
+      bg1.style.opacity = toggle ? 0 : 1;
+      bg2.style.opacity = toggle ? 1 : 0;
+      toggle = !toggle;
+    }, 12000);
+
+    // 3) 气泡（朦胧、均衡、不臃肿）
     const texts = [
       "那以爱为名的骗子，本不配得到哀悼。",
       "神明不是每个人都会眷顾的。",
@@ -135,7 +174,6 @@
       "记住你，爱上你，直到死亡将你带走。",
       "这一次，我是为你而来的神明。"
     ];
-
     const colors = [
       "rgba(255,255,255,.70)",
       "rgba(251,235,255,.68)",
@@ -144,22 +182,14 @@
       "rgba(255,247,232,.66)",
       "rgba(242,238,255,.66)"
     ];
-
-    const layer = document.getElementById("layer");
     const recent = [];
-
     function pickText(){
       let t = texts[Math.floor(Math.random()*texts.length)];
-      let g = 0;
-      while(recent.includes(t) && g<10){
-        t = texts[Math.floor(Math.random()*texts.length)];
-        g++;
-      }
-      recent.push(t);
-      if(recent.length>3) recent.shift();
+      let g=0;
+      while(recent.includes(t) && g<10){ t = texts[Math.floor(Math.random()*texts.length)]; g++; }
+      recent.push(t); if(recent.length>3) recent.shift();
       return t;
     }
-
     function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
 
     function spawn(){
@@ -168,15 +198,15 @@
       b.textContent = pickText();
       b.style.setProperty("--bg", colors[Math.floor(Math.random()*colors.length)]);
 
-      const w = innerWidth, h = innerHeight;
-      const r = Math.random();
-      let x = r<0.34 ? w*(0.1+Math.random()*0.32)
+      const w=innerWidth, h=innerHeight;
+      const r=Math.random();
+      let x = r<0.34 ? w*(0.10+Math.random()*0.32)
             : r<0.68 ? w*(0.58+Math.random()*0.32)
-            : w*(0.3+Math.random()*0.4);
+            : w*(0.30+Math.random()*0.40);
       let y = h*(0.22+Math.random()*0.64);
 
       layer.appendChild(b);
-      const bw = b.offsetWidth||300, bh=b.offsetHeight||40;
+      const bw=b.offsetWidth||300, bh=b.offsetHeight||40;
       b.style.left = clamp(x,10,w-bw-10)+"px";
       b.style.top  = clamp(y,70,h-bh-18)+"px";
 
@@ -185,9 +215,7 @@
         if(Math.random()<0.7) b.classList.add("float");
       });
 
-      if(layer.children.length>14){
-        layer.children[0].classList.add("fade");
-      }
+      if(layer.children.length>14) layer.children[0].classList.add("fade");
       if(layer.children.length>20){
         const o=layer.children[0];
         setTimeout(()=>o&&o.remove(),6000);
@@ -195,30 +223,33 @@
 
       setTimeout(spawn, 620+Math.random()*980);
     }
-
     setTimeout(spawn,420);
     setTimeout(spawn,1150);
 
-    let s=true;
-    setInterval(()=>{
-      document.querySelector(".bg1").style.opacity = s?0:1;
-      document.querySelector(".bg2").style.opacity = s?1:0;
-      s=!s;
-    },12000);
+    // 4) 爱心（克制）
+    const hearts=["💗","💖","💘","💕"];
+    document.addEventListener("click",(e)=>{
+      for(let k=0;k<3;k++){
+        const h=document.createElement("div");
+        h.className="heart";
+        h.textContent=hearts[Math.floor(Math.random()*hearts.length)];
+        h.style.setProperty("--x", e.clientX+"px");
+        h.style.setProperty("--y", e.clientY+"px");
+        h.style.setProperty("--dx",(Math.random()*120-60)+"px");
+        document.body.appendChild(h);
+        h.addEventListener("animationend",()=>h.remove());
+      }
+    },{passive:true});
 
-    const bgm = document.getElementById("bgm");
+    // 5) BGM：首次交互播放（微信必须）
+    const bgm=document.getElementById("bgm");
     let started=false;
     async function play(){
       if(started) return;
-      try{
-        bgm.volume=0.26;
-        await bgm.play();
-        started=true;
-      }catch(e){}
+      try{ bgm.volume=0.26; await bgm.play(); started=true; }catch(e){}
     }
     document.addEventListener("click",play,{once:true});
     document.addEventListener("touchstart",play,{once:true});
-
   });
   </script>
 </body>
