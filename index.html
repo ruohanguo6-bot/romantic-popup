@@ -18,22 +18,22 @@
       position:fixed; inset:0;
       background-position:center;
       background-size:cover;
-      transition: opacity 4.0s ease;
+      transition: opacity 4s ease;
       z-index:-3;
     }
     .bg1{ background-image:url("bg1.jpg"); opacity:1; }
     .bg2{ background-image:url("bg2.jpg"); opacity:0; }
 
-    /* 朦胧暗角 + 轻雾（不模糊背景） */
+    /* 朦胧暗角（只做气氛，不遮画） */
     .vignette{
       position:fixed; inset:0; z-index:-2;
       background:
-        radial-gradient(70% 62% at 50% 34%, rgba(0,0,0,0) 42%, rgba(0,0,0,.48) 100%),
-        linear-gradient(to bottom, rgba(0,0,0,.10), rgba(0,0,0,.22));
+        radial-gradient(70% 62% at 50% 34%, rgba(0,0,0,0) 42%, rgba(0,0,0,.45) 100%),
+        linear-gradient(to bottom, rgba(0,0,0,.08), rgba(0,0,0,.18));
       pointer-events:none;
     }
 
-    /* 左上角标题 */
+    /* 标题 */
     .tip{
       position:fixed; top:14px; left:14px;
       padding:8px 14px;
@@ -45,7 +45,7 @@
       user-select:none;
     }
 
-    /* ===== 气泡自由层 ===== */
+    /* ===== 气泡层 ===== */
     #layer{
       position:fixed; inset:0;
       z-index:10;
@@ -57,21 +57,17 @@
       max-width:min(74vw, 460px);
       padding:10px 12px;
       border-radius:16px;
-
-      background: var(--bg, rgba(255,255,255,.72));
+      background: var(--bg, rgba(255,255,255,.70));
       color: rgba(20,20,28,.92);
-
       border: 1px solid rgba(255,255,255,.45);
       box-shadow: 0 12px 30px rgba(0,0,0,.18);
-
       font-size:13px;
       line-height:1.45;
 
       opacity:0;
       transform: translateY(14px) scale(.975);
-      filter: blur(1.0px);
+      filter: blur(1px);
       will-change: transform, opacity;
-      -webkit-font-smoothing: antialiased;
     }
 
     .bubble.show{
@@ -85,11 +81,145 @@
     }
 
     .bubble.float{
-      animation: drift 7.2s ease-in-out infinite;
+      animation: drift 7s ease-in-out infinite;
     }
     @keyframes drift{
-      0%,100%{ transform: translateY(0) scale(1); }
-      50%{ transform: translateY(-6px) scale(1); }
+      0%,100%{ transform: translateY(0); }
+      50%{ transform: translateY(-6px); }
     }
 
-    .bubbl
+    .bubble.fade{
+      opacity:.15;
+      transition: opacity 6s ease;
+    }
+
+    /* 点击飘心（极克制） */
+    .heart{
+      position:fixed;
+      left:var(--x); top:var(--y);
+      transform:translate(-50%,-50%);
+      font-size:18px;
+      opacity:0;
+      pointer-events:none;
+      animation: floatUp 2.6s linear forwards;
+      z-index:40;
+    }
+    @keyframes floatUp{
+      0%{opacity:0; transform:translate(-50%,-20%) scale(.8);}
+      15%{opacity:.7;}
+      100%{opacity:0; transform:translate(calc(-50% + var(--dx)),-260px) scale(1.3);}
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="bg bg1"></div>
+  <div class="bg bg2"></div>
+  <div class="vignette"></div>
+
+  <div class="tip">公子佳人</div>
+  <div id="layer"></div>
+
+  <!-- 🎧 BGM：稳定方案 -->
+  <audio id="bgm" src="bgm.mp3" loop preload="none"
+         playsinline webkit-playsinline></audio>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+
+    const texts = [
+      "那以爱为名的骗子，本不配得到哀悼。",
+      "神明不是每个人都会眷顾的。",
+      "如果雪地足够干净，脚印留下来，本身也不是什么坏事。",
+      "记住你，爱上你，直到死亡将你带走。",
+      "这一次，我是为你而来的神明。"
+    ];
+
+    const colors = [
+      "rgba(255,255,255,.70)",
+      "rgba(251,235,255,.68)",
+      "rgba(236,243,255,.68)",
+      "rgba(236,255,248,.64)",
+      "rgba(255,247,232,.66)",
+      "rgba(242,238,255,.66)"
+    ];
+
+    const layer = document.getElementById("layer");
+    const recent = [];
+
+    function pickText(){
+      let t = texts[Math.floor(Math.random()*texts.length)];
+      let g = 0;
+      while(recent.includes(t) && g<10){
+        t = texts[Math.floor(Math.random()*texts.length)];
+        g++;
+      }
+      recent.push(t);
+      if(recent.length>3) recent.shift();
+      return t;
+    }
+
+    function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+
+    function spawn(){
+      const b = document.createElement("div");
+      b.className = "bubble";
+      b.textContent = pickText();
+      b.style.setProperty("--bg", colors[Math.floor(Math.random()*colors.length)]);
+
+      const w = innerWidth, h = innerHeight;
+      const r = Math.random();
+      let x = r<0.34 ? w*(0.1+Math.random()*0.32)
+            : r<0.68 ? w*(0.58+Math.random()*0.32)
+            : w*(0.3+Math.random()*0.4);
+      let y = h*(0.22+Math.random()*0.64);
+
+      layer.appendChild(b);
+      const bw = b.offsetWidth||300, bh=b.offsetHeight||40;
+      b.style.left = clamp(x,10,w-bw-10)+"px";
+      b.style.top  = clamp(y,70,h-bh-18)+"px";
+
+      requestAnimationFrame(()=>{
+        b.classList.add("show");
+        if(Math.random()<0.7) b.classList.add("float");
+      });
+
+      if(layer.children.length>14){
+        layer.children[0].classList.add("fade");
+      }
+      if(layer.children.length>20){
+        const o=layer.children[0];
+        setTimeout(()=>o&&o.remove(),6000);
+      }
+
+      setTimeout(spawn, 620+Math.random()*980);
+    }
+
+    setTimeout(spawn,420);
+    setTimeout(spawn,1150);
+
+    let s=true;
+    setInterval(()=>{
+      document.querySelector(".bg1").style.opacity = s?0:1;
+      document.querySelector(".bg2").style.opacity = s?1:0;
+      s=!s;
+    },12000);
+
+    const bgm = document.getElementById("bgm");
+    let started=false;
+    async function play(){
+      if(started) return;
+      try{
+        bgm.volume=0.26;
+        await bgm.play();
+        started=true;
+      }catch(e){}
+    }
+    document.addEventListener("click",play,{once:true});
+    document.addEventListener("touchstart",play,{once:true});
+
+  });
+  </script>
+</body>
+</html>
